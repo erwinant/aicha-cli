@@ -145,8 +145,10 @@ function cleanupTemp(tempPath) {
 function cloneRepo(repository, ref) {
     const tempPath = path.join(os.tmpdir(), `aicha-clone-${Date.now()}`);
     try {
+        // Saat memakai PAT, kirim Basic auth dari URL dan abaikan login Windows/credential helper yang tersimpan
+        const authOptions = hasPat() ? '-c http.proactiveAuth=basic -c credential.helper= ' : '';
         // Nonaktifkan prompt kredensial agar kegagalan autentikasi langsung menjadi error, bukan dialog
-        execSync(`git clone --depth 1 --branch ${ref} "${buildCloneUrl(repository)}" "${tempPath}"`, {
+        execSync(`git ${authOptions}clone --depth 1 --branch ${ref} "${buildCloneUrl(repository)}" "${tempPath}"`, {
             stdio: 'ignore',
             env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
         });
