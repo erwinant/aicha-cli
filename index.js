@@ -38,7 +38,7 @@ async function loadConfig() {
 
     console.log(`\x1b[33m[AICHA]\x1b[0m config.json belum ada. Silakan isi konfigurasi berikut.`);
     const serverUrl = await input({
-        message: 'Masukkan SERVER_URL (contoh: https://tfs.astra.co.id/tfs)',
+        message: 'Masukkan SERVER_URL (contoh: https://github.com)',
         validate: value => value.trim() !== '' || 'SERVER_URL wajib diisi',
     });
     const pat = await password({
