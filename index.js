@@ -6,7 +6,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import os from 'os';
 import { fileURLToPath } from 'url';
-import { checkbox } from '@inquirer/prompts';
+import { checkbox, input, password } from '@inquirer/prompts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,25 +21,34 @@ const AGENT_TARGETS = {
     claude: { label: 'Claude Code', dir: path.join(HOME_DIR, '.claude', 'skills') },
 };
 
-// Fungsi inisialisasi berkas konfigurasi tunggal
-function initConfig() {
-    if (!fs.existsSync(CONFIG_FILE)) {
-        const defaultConfig = {
-            SERVER_URL: "https://github.com",
-            PAT: "TEMPEL_TOKEN_PAT_DISINI"
-        };
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(defaultConfig, null, 4), 'utf8');
-        console.log(`\x1b[33m[AICHA]\x1b[0m File config.json baru dibuat di root project.`);
-    }
-    try {
-        return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    } catch (error) {
-        console.error(`\x1b[31m✖ [ERROR]: Gagal membaca file config.json lokal.\x1b[0m`);
-        process.exit(1);
-    }
-}
+let config = null;
 
-const config = initConfig();
+// Muat config.json. Jika belum ada, minta SERVER_URL dan PAT lalu simpan ke config.json
+async function loadConfig() {
+    if (config) return config;
+
+    if (fs.existsSync(CONFIG_FILE)) {
+        try {
+            config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            return config;
+        } catch (error) {
+            throw new Error('Gagal membaca file config.json lokal.');
+        }
+    }
+
+    console.log(`\x1b[33m[AICHA]\x1b[0m config.json belum ada. Silakan isi konfigurasi berikut.`);
+    const serverUrl = await input({
+        message: 'Masukkan SERVER_URL (contoh: https://tfs.astra.co.id/tfs)',
+        validate: value => value.trim() !== '' || 'SERVER_URL wajib diisi',
+    });
+    const pat = await password({
+        message: 'Masukkan PAT (kosongkan jika repo bersifat publik)',
+        mask: '*',
+    });
+
+    config = { SERVER_URL: serverUrl.trim(), PAT: pat.trim() };
+    return config;
+}
 
 // Struktur wajib: <root>/skills/<nama-skill>/SKILL.md
 // Nama dicek persis (case-sensitive) dengan membaca nama asli dari disk,
@@ -166,7 +175,7 @@ const skillCommand = program
   .description('Kelola skill AI');
 
 skillCommand
-  .command('install <repository> [skillAndVersion]')
+  .command('install [repository] [skillAndVersion]')
   .description('Unduh dan pasang skill berdasarkan parameter SERVER_URL dan PAT tunggal')
   .option('-r, --ref <versi>', 'tag atau branch yang akan di-install (default: main)')
   .action(async (repository, skillAndVersion, options) => {
@@ -189,7 +198,15 @@ skillCommand
     let tempExtractPath = null;
 
     try {
-        // 1. Clone repo ke folder temporary dan catat commit-nya
+        // 1. Pastikan konfigurasi dan repository tersedia, lalu clone ke folder temporary
+        await loadConfig();
+        if (!repository) {
+            repository = await input({
+                message: 'Masukkan repository (contoh: erwinant/ai-skills-libs)',
+                validate: value => value.trim() !== '' || 'Repository wajib diisi',
+            });
+            repository = repository.trim();
+        }
         const repo = cloneRepo(repository, targetVersion);
         tempExtractPath = repo.tempPath;
 
@@ -269,6 +286,17 @@ skillCommand
         console.log(skill
             ? `[AICHA] Skill "${skill}" tidak terpasang melalui aicha.`
             : '[AICHA] Tidak ada skill terpasang untuk diperbarui.');
+        return;
+    }
+
+    try {
+        await loadConfig();
+    } catch (error) {
+        if (error.name === 'ExitPromptError') {
+            console.log(`\x1b[33m[AICHA]\x1b[0m Pembaruan dibatalkan.`);
+        } else {
+            console.error(`\x1b[31m✖ [AICHA GAGAL]:\x1b[0m`, error.message);
+        }
         return;
     }
 
