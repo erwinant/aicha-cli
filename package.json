@@ -1,5 +1,5 @@
 {
-  "name": "aicha-cli",
+  "name": "aibucket-cli",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -11,7 +11,7 @@
   "license": "ISC",
   "type": "module",
   "bin": {
-    "aicha": "./index.js"
+    "aibucket": "./index.js"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.8.0",

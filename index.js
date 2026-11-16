@@ -36,7 +36,7 @@ async function loadConfig() {
         }
     }
 
-    console.log(`\x1b[33m[AICHA]\x1b[0m config.json belum ada. Silakan isi konfigurasi berikut.`);
+    console.log(`\x1b[33m[AIBUCKET]\x1b[0m config.json belum ada. Silakan isi konfigurasi berikut.`);
     const serverUrl = await input({
         message: 'Masukkan SERVER_URL (contoh: https://github.com)',
         validate: value => value.trim() !== '' || 'SERVER_URL wajib diisi',
@@ -91,9 +91,15 @@ function validateSkillStructure(repoRoot) {
 }
 
 // Catatan instalasi per agent dan skill, dipakai oleh `skill list` dan `skill update`
-const REGISTRY_FILE = path.join(HOME_DIR, '.aicha', 'installs.json');
+const REGISTRY_FILE = path.join(HOME_DIR, '.aibucket', 'installs.json');
+const LEGACY_REGISTRY_FILE = path.join(HOME_DIR, '.aicha', 'installs.json');
 
 function loadRegistry() {
+    // Pindahkan registry lama (sebelum rename ke aibucket) agar riwayat install tidak hilang
+    if (!fs.existsSync(REGISTRY_FILE) && fs.existsSync(LEGACY_REGISTRY_FILE)) {
+        fs.mkdirSync(path.dirname(REGISTRY_FILE), { recursive: true });
+        fs.copyFileSync(LEGACY_REGISTRY_FILE, REGISTRY_FILE);
+    }
     if (!fs.existsSync(REGISTRY_FILE)) return {};
     return JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf8'));
 }
@@ -143,7 +149,7 @@ function cleanupTemp(tempPath) {
 
 // Clone repo ke folder temporary dan mengembalikan path-nya beserta commit SHA
 function cloneRepo(repository, ref) {
-    const tempPath = path.join(os.tmpdir(), `aicha-clone-${Date.now()}`);
+    const tempPath = path.join(os.tmpdir(), `aibucket-clone-${Date.now()}`);
     try {
         // Saat memakai PAT, kirim Basic auth dari URL dan abaikan login Windows/credential helper yang tersimpan
         const authOptions = hasPat() ? '-c http.proactiveAuth=basic -c credential.helper= ' : '';
@@ -168,8 +174,8 @@ function installSkill(agent, skill, sourceDir) {
 }
 
 program
-  .name('aicha')
-  .description('AICHA - Single Mode Agent Skills Sync Tool')
+  .name('aibucket')
+  .description('AIBUCKET - Single Mode Agent Skills Sync Tool')
   .version('2.0.0');
 
 const skillCommand = program
@@ -195,7 +201,7 @@ skillCommand
         }
     }
 
-    console.log(`\x1b[36m[AICHA]\x1b[0m Menghubungkan ke remote target...`);
+    console.log(`\x1b[36m[AIBUCKET]\x1b[0m Menghubungkan ke remote target...`);
 
     let tempExtractPath = null;
 
@@ -249,9 +255,9 @@ skillCommand
 
     } catch (error) {
         if (error.name === 'ExitPromptError') {
-            console.log(`\x1b[33m[AICHA]\x1b[0m Instalasi dibatalkan.`);
+            console.log(`\x1b[33m[AIBUCKET]\x1b[0m Instalasi dibatalkan.`);
         } else {
-            console.error(`\x1b[31m✖ [AICHA GAGAL]:\x1b[0m`, error.message);
+                        console.error(`\x1b[31m✖ [AIBUCKET GAGAL]:\x1b[0m`, error.message);
         }
     } finally {
         if (tempExtractPath) cleanupTemp(tempExtractPath);
@@ -264,7 +270,7 @@ skillCommand
   .action(() => {
     const entries = Object.values(loadRegistry());
     if (entries.length === 0) {
-        console.log('[AICHA] Belum ada skill yang terpasang melalui aicha.');
+        console.log('[AIBUCKET] Belum ada skill yang terpasang melalui aibucket.');
         return;
     }
     entries.sort((a, b) => a.agent.localeCompare(b.agent) || a.skill.localeCompare(b.skill));
@@ -286,8 +292,8 @@ skillCommand
     if (skill) entries = entries.filter(e => e.skill === skill);
     if (entries.length === 0) {
         console.log(skill
-            ? `[AICHA] Skill "${skill}" tidak terpasang melalui aicha.`
-            : '[AICHA] Tidak ada skill terpasang untuk diperbarui.');
+            ? `[AIBUCKET] Skill "${skill}" tidak terpasang melalui aibucket.`
+            : '[AIBUCKET] Tidak ada skill terpasang untuk diperbarui.');
         return;
     }
 
@@ -295,9 +301,9 @@ skillCommand
         await loadConfig();
     } catch (error) {
         if (error.name === 'ExitPromptError') {
-            console.log(`\x1b[33m[AICHA]\x1b[0m Pembaruan dibatalkan.`);
+            console.log(`\x1b[33m[AIBUCKET]\x1b[0m Pembaruan dibatalkan.`);
         } else {
-            console.error(`\x1b[31m✖ [AICHA GAGAL]:\x1b[0m`, error.message);
+                        console.error(`\x1b[31m✖ [AIBUCKET GAGAL]:\x1b[0m`, error.message);
         }
         return;
     }
@@ -314,7 +320,7 @@ skillCommand
         const { repository, ref } = group[0];
         let tempExtractPath = null;
         try {
-            console.log(`\x1b[36m[AICHA]\x1b[0m Memeriksa ${repository} (${ref})...`);
+            console.log(`\x1b[36m[AIBUCKET]\x1b[0m Memeriksa ${repository} (${ref})...`);
             const repo = cloneRepo(repository, ref);
             tempExtractPath = repo.tempPath;
             const availableSkills = validateSkillStructure(tempExtractPath);
@@ -333,7 +339,7 @@ skillCommand
                 console.log(`\x1b[32m✔\x1b[0m [${AGENT_TARGETS[entry.agent].label}] ${entry.skill} diperbarui: ${entry.commit.slice(0, 7)} → ${repo.commit.slice(0, 7)}`);
             }
         } catch (error) {
-            console.error(`\x1b[31m✖ [AICHA GAGAL]:\x1b[0m`, error.message);
+            console.error(`\x1b[31m✖ [AIBUCKET GAGAL]:\x1b[0m`, error.message);
         } finally {
             if (tempExtractPath) cleanupTemp(tempExtractPath);
         }
